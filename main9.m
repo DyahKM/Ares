@@ -150,7 +150,7 @@ save('TB_phase1_combined.mat', 'Out', 'Out_LSQ');
 fprintf('Starting ARES filter processing...\n');
 
 % Try different annihilating filter ratios
-stop_ratios = [1.5, 2.0, 2.5];
+stop_ratios = [0.3, 0.5, 0.7];
 RMSE = zeros(length(stop_ratios), iterationTime+1);
 
 % Save ARES parameters
