@@ -78,7 +78,7 @@ events = zeros(num_days, 1);
 % H-FUSION Parameters
 lambdas = [0.1, 1, 5, 10, 20];  % Multiple lambda values to test
 alpha = 0.5;                    % Balance between smoothness and periodicity
-gama = 0.5;                     % Parameter for cost function
+gama = 1;                     % Parameter for cost function
 iterationTime = 5;              % Number of iterations
 
 % Configure different experimental setups for report aggregation tests
@@ -150,7 +150,7 @@ save('TB_phase1_combined.mat', 'Out', 'Out_LSQ');
 fprintf('Starting ARES filter processing...\n');
 
 % Try different annihilating filter ratios
-stop_ratios = [2];
+stop_ratios = [1.5, 2.0, 2.5];
 RMSE = zeros(length(stop_ratios), iterationTime+1);
 
 % Save ARES parameters
@@ -542,3 +542,6 @@ function int_values = dither_to_integers(values, target_sum)
         end
     end
 end
+%% 
+disp(Inc_A.ActError);
+
