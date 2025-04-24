@@ -16,7 +16,19 @@ function [Out_A] = annihilating(Out, events, ratio)
         Out_A(l).A = A;
         Out_A(l).y = y;
         
-        tempL = L_stop(ratio);
+        if isnumeric(ratio) && ratio > 0 && ratio <= length(L_stop)
+            tempL = L_stop(ratio);
+        elseif isnumeric(ratio) && (ratio > 0 && ratio <= 1)
+            % Assuming L_stop corresponds to values between 0-1
+            % Find closest match
+            stops = [0:0.1:0.8,0.9:0.01:1]; % Same as in stopLength.m
+            [~, idx] = min(abs(stops - ratio));
+            tempL = L_stop(idx);
+        else
+            % Default to middle value if out of range
+            tempL = L_stop(ceil(length(L_stop)/2));
+            fprintf('Warning: Invalid ratio value, using default filter length.\n');
+        end
         
         N = length(reconX);
 
