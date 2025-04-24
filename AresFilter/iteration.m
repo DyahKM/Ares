@@ -1,6 +1,19 @@
 function [inc,Out_First,Out_Last] = iteration(Out, events, time, Gama, ratio)
-    % LorT = Length if using annihilating filter
-    % LorT = Threshold if using fourier filter
+    % ITERATION Iteratively improves signal reconstruction using annihilating filter
+    %
+    % Inputs:
+    %   Out - Initial reconstruction structure
+    %   events - Original event data for error calculation
+    %   time - Number of iterations to perform
+    %   Gama - Cost function weighting parameter
+    %   ratio - Filter length ratio parameter
+    %
+    % Outputs:
+    %   inc - Information about iteration progress
+    %   Out_First - Results after first iteration
+    %   Out_Last - Results after final iteration
+    
+    % Initialize error tracking arrays
     error = zeros(length(Out),1);
     for i=1:length(Out)
         error(i) = Out(i).error;
@@ -27,6 +40,9 @@ function [inc,Out_First,Out_Last] = iteration(Out, events, time, Gama, ratio)
         else
             prev_recon{i} = zeros(size(events));
         end
+        
+        % Add iteration field to track iterations
+        dummyOut(i).iteration = 0;
     end
     
     % Track if improvement stopped
@@ -44,12 +60,19 @@ function [inc,Out_First,Out_Last] = iteration(Out, events, time, Gama, ratio)
             fprintf('Using adaptive gamma: %.4f (original: %.4f)\n', adaptive_gama, Gama);
         end
         
-        % Log the stop ratio being used
-        fprintf('Using stop ratio: %.2f\n', ratio);
+        % Dynamic stop ratio adjustment to get more diverse results
+        % Each iteration uses a slightly modified ratio to avoid converging to same solution
+        current_ratio = ratio;
+        if j > 1
+            % Apply small oscillating perturbation to ratio
+            ratio_perturb = 0.05 * sin(j * pi/2);
+            current_ratio = ratio * (1 + ratio_perturb);
+            fprintf('Adjusting ratio to %.4f (base: %.2f)\n', current_ratio, ratio);
+        end
         
+        % Call the annihilating filter function with current ratio
         tic    
-        % Call the annihilating filter function
-        [Out_A] = annihilating(dummyOut, events, ratio);
+        [Out_A] = annihilating(dummyOut, events, current_ratio);
         toc
         
         % Calculate new errors
@@ -63,7 +86,7 @@ function [inc,Out_First,Out_Last] = iteration(Out, events, time, Gama, ratio)
         recon_change = 0;
         for i = 1:length(Out)
             if isfield(Out_A(i), 'x_reconstr')
-                recon_change = recon_change + norm(Out_A(i).x_reconstr - prev_recon{i}) / norm(prev_recon{i});
+                recon_change = recon_change + norm(Out_A(i).x_reconstr - prev_recon{i}) / (norm(prev_recon{i}) + eps);
                 prev_recon{i} = Out_A(i).x_reconstr;
             end
         end
@@ -103,7 +126,9 @@ function [inc,Out_First,Out_Last] = iteration(Out, events, time, Gama, ratio)
             data_term = norm(Out_A(l).y - Out_A(l).A * Out_A(l).x_reconstr, 2)^2;
             filter_term = norm(Out_A(l).Matrix * Out_A(l).x_reconstr, 2)^2;
             
-            L(l) = sqrt(1-adaptive_gama) * data_term + sqrt(adaptive_gama) * filter_term;
+            % Modified cost function with length-dependent weighting
+            filter_weight = sqrt(adaptive_gama) * (1 + 0.1 * sin(j * pi/2));
+            L(l) = sqrt(1-adaptive_gama) * data_term + filter_weight * filter_term;
             
             fprintf('Config %d: Data term: %.4f, Filter term: %.4f, Cost: %.4f\n', ...
                    l, data_term, filter_term, L(l));
@@ -148,5 +173,17 @@ function [inc,Out_First,Out_Last] = iteration(Out, events, time, Gama, ratio)
     fprintf('\nRMSE progression:\n');
     for j = 1:time+1
         fprintf('Iteration %d: %.6f\n', j-1, mean(ActError(:,j)));
+    end
+    
+    % Plot RMSE progression if plotting is available
+    try
+        figure;
+        plot(0:time, mean(ActError,1), 'b-o', 'LineWidth', 2);
+        title('Average RMSE Progression');
+        xlabel('Iteration');
+        ylabel('RMSE');
+        grid on;
+    catch
+        fprintf('Note: Unable to create plot (may be running in non-GUI environment)\n');
     end
 end
